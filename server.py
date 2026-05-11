@@ -131,12 +131,20 @@ DECISION LOGIC:
 # --------------------------------------------------
 # RUN SERVER
 # --------------------------------------------------
+# --------------------------------------------------
+# RUN SERVER
+# --------------------------------------------------
 if __name__ == "__main__":
     import os
+    import uvicorn
+    
     print("Starting Unilever Price Forecasting MCP Server...")
     
     # Get port from Render environment variable
     port = int(os.environ.get("PORT", 8000))
     
-    # Run with SSE transport for web deployment
-    mcp.run(transport="sse", port=port)
+    # Create ASGI app from FastMCP
+    app = mcp.get_asgi_app()
+    
+    # Run with uvicorn for web deployment
+    uvicorn.run(app, host="0.0.0.0", port=port)
