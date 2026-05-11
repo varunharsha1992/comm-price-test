@@ -128,6 +128,9 @@ DECISION LOGIC:
 # --------------------------------------------------
 # RUN SERVER
 # --------------------------------------------------
+# --------------------------------------------------
+# RUN SERVER
+# --------------------------------------------------
 if __name__ == "__main__":
     import os
     print("Starting Unilever Price Forecasting MCP Server...")
@@ -136,4 +139,4 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     
     # Run with SSE transport for web deployment
-    mcp.run(transport="sse", host="0.0.0.0", port=port)
+    mcp.run(transport="sse", port=port)
