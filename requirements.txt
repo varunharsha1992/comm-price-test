@@ -1,0 +1,17 @@
+# requirements.txt
+# Unilever Price Forecasting MCP Server
+
+# Core data
+pandas==2.2.2
+numpy==1.26.4
+openpyxl==3.1.2
+
+# ML Models
+xgboost==2.0.3
+prophet==1.1.5
+
+# Supabase Storage
+supabase==2.4.6
+
+# MCP Server
+fastmcp==0.4.1
