@@ -377,13 +377,15 @@ def run_forecast(forecast_days: int = 45) -> dict:
     result = train_and_forecast(df_feat, forecast_days=forecast_days)
 
     print("\n FORECAST COMPLETE")
-    print(f"  Latest Price  : {result['latest_price']}")
-    print(f"  Forecast Price: {result['forecast_price']}")
-    print(f"  Trust Score   : {result['trust_score']}")
+    print(f"  Latest Price  : Rs.{result['latest_price']}")
+    print(f"  Forecast Price: Rs.{result['forecast_price']}")
+    print(f"  Trust Score   : {result['trust_score']}/100")
     print(f"  Direction     : {result['price_direction']}")
     print(f"  Decision      : {result['decision']}")
 
     return result
+
+    
 
 
 if __name__ == "__main__":
