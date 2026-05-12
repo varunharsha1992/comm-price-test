@@ -141,6 +141,10 @@ Deployed on Prefect Horizon (FastMCP Cloud).
 
 from fastmcp import FastMCP
 from forecaster import run_forecast
+import sys
+import io
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 # Initialize FastMCP server (v3 syntax)
 mcp = FastMCP("Unilever Price Forecasting")
