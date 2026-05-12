@@ -132,7 +132,6 @@
     
 #     # Force stdio transport explicitly
 #     mcp.run(transport="stdio")
-
 """
 server.py
 ---------
@@ -143,33 +142,17 @@ Deployed on Prefect Horizon (FastMCP Cloud).
 from fastmcp import FastMCP
 from forecaster import run_forecast
 
-# Initialize FastMCP server
-mcp = FastMCP(
-    name="Unilever Price Forecasting",
-    description=(
-        "Tomato price forecasting for Unilever procurement. "
-        "Reads from Supabase S3, runs XGBoost + Prophet ensemble, "
-        "returns 45-day forecast and procurement decision."
-    )
-)
+# Initialize FastMCP server (v3 syntax)
+mcp = FastMCP("Unilever Price Forecasting")
 
 
 @mcp.tool()
 def run_price_forecast(forecast_days: int = 45) -> dict:
     """
     Run the Unilever tomato price forecasting model.
-
     Reads input data from Supabase S3 storage, trains an
-    XGBoost + Prophet ensemble model, and returns:
-    - 45-day price forecast series
-    - Procurement decision (LOCK-IN / PARTIAL LOCK-IN / SPOT BUY)
-    - Trust score (0-100)
-    - Price direction (UP / DOWN)
-
-    Parameters
-    ----------
-    forecast_days : int
-        Number of days to forecast ahead. Default is 45.
+    XGBoost + Prophet ensemble model, and returns a 45-day
+    price forecast and procurement decision (LOCK-IN / SPOT BUY).
     """
     result = run_forecast(forecast_days=forecast_days)
     return result
