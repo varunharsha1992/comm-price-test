@@ -83,9 +83,9 @@ def upload_files():
                     "upsert": "true"
                 }
             )
-            print(f"  ✅ Uploaded: {filename}")
+            print(f"  Uploaded: {filename}")
         except Exception as e:
-            print(f"  ❌ Failed: {filename} → {e}")
+            print(f"   Failed: {filename} → {e}")
 
     print("\nAll uploads done!")
 

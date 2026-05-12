@@ -376,7 +376,7 @@ def run_forecast(forecast_days: int = 45) -> dict:
     print("\n[5/5] Training models & generating forecast...")
     result = train_and_forecast(df_feat, forecast_days=forecast_days)
 
-    print("\n✅ FORECAST COMPLETE")
+    print("\n FORECAST COMPLETE")
     print(f"  Latest Price  : ₹{result['latest_price']}")
     print(f"  Forecast Price: ₹{result['forecast_price']}")
     print(f"  Trust Score   : {result['trust_score']}")
