@@ -19,6 +19,7 @@ import pandas as pd
 from supabase import create_client, Client
 from dotenv import load_dotenv
 load_dotenv()
+os.environ["PYTHONIOENCODING"] = "utf-8"
 
 # --------------------------------------------------
 # PASTE YOUR SUPABASE CREDENTIALS HERE
