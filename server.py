@@ -141,6 +141,7 @@ Deployed on Prefect Horizon (FastMCP Cloud).
 
 from fastmcp import FastMCP
 from forecaster import run_forecast
+from market_intel import get_market_intel_summary_impl, run_market_intel_impl
 import sys
 import io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -193,6 +194,34 @@ PROCUREMENT RECOMMENDATION
 =======================================
 """
     return summary.strip()
+
+
+@mcp.tool()
+def run_market_intel(
+    commodity: str = "Tomato",
+    origin: str = "Madanapalli APMC",
+    horizon_days: int = 45,
+) -> dict:
+    """
+    Build market intelligence from files in MARKET_INTEL_DATA_DIR (default: cwd).
+
+    Expects price_forecast.json and seasonal_calendar.json; optional ndvi_latest.json
+    and mandi_arrivals.csv. Scrapes IMD rainfall context. Writes market_intel.json and
+    returns intel_id plus structured signals and aggregate_price_drift_adjustment.
+    """
+    return run_market_intel_impl(
+        commodity=commodity,
+        origin=origin,
+        horizon_days=horizon_days,
+    )
+
+
+@mcp.tool()
+def get_market_intel_summary(intel_id: str) -> str:
+    """
+    Return the markdown summary for a prior run_market_intel call (same server process).
+    """
+    return get_market_intel_summary_impl(intel_id)
 
 
 if __name__ == "__main__":

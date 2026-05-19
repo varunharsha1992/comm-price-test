@@ -4,3 +4,19 @@ __pycache__/
 *.pyo
 *.egg-info/
 .DS_Store
+
+# Local bundles / drafts (do not push)
+*.zip
+Procurement_Engine_Plugin_Map.md
+Simulation_Approach.md
+SKILL (5).md
+
+# Claude plugin workspace copy (tracked separately if needed)
+comm-price-forecasting/
+
+# Workshop project inputs (CSV/JSON data)
+projects/tomato-madanapalli/
+
+# Junk / scratch filenames seen locally
+ziuRF03w
+ziw1UsP6
