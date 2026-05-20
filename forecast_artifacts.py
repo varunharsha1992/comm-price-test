@@ -15,7 +15,9 @@ import numpy as np
 
 
 def get_commodity_data_dir() -> Path:
-    raw = os.environ.get("MARKET_INTEL_DATA_DIR", ".")
+    # Default to /tmp/commodity_data — always writable in containerised environments
+    # (e.g. Render, AWS Lambda). Override by setting MARKET_INTEL_DATA_DIR.
+    raw = os.environ.get("MARKET_INTEL_DATA_DIR", "/tmp/commodity_data")
     return Path(raw).expanduser().resolve()
 
 
@@ -42,21 +44,46 @@ def build_price_forecast_payload(result: dict[str, Any]) -> dict[str, Any]:
 
 
 def save_price_forecast_json(result: dict[str, Any], base_dir: Path | None = None) -> Path:
-    """Persist price_forecast.json; returns path written."""
-    root = base_dir if base_dir is not None else get_commodity_data_dir()
-    root.mkdir(parents=True, exist_ok=True)
-    path = root / "price_forecast.json"
+    """Persist price_forecast.json; returns path written.
+
+    Write strategy:
+    - If COMMODITY_USE_SUPABASE_ARTIFACTS=true → Supabase is the primary target.
+      A local copy is attempted afterwards as a best-effort cache (failures are
+      non-fatal because run_market_intel will re-hydrate from Supabase).
+    - Otherwise → local filesystem only (MARKET_INTEL_DATA_DIR, default /tmp/commodity_data).
+    """
     payload = build_price_forecast_payload(result)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2, default=str)
 
     try:
         from workspace_storage import artifacts_enabled, get_supabase, upload_json_object
 
         if artifacts_enabled():
+            # Primary: write to Supabase
             sb = get_supabase()
             upload_json_object(sb, "price_forecast.json", payload)
-    except Exception as exc:  # noqa: BLE001 — remote sync optional; local file is canonical
-        print(f"[forecast_artifacts] Supabase workspace upload failed (local saved): {exc}", flush=True)
+            print("[forecast_artifacts] price_forecast.json uploaded to Supabase.", flush=True)
+
+            # Best-effort local cache (non-fatal if filesystem is read-only)
+            try:
+                root = base_dir if base_dir is not None else get_commodity_data_dir()
+                root.mkdir(parents=True, exist_ok=True)
+                path = root / "price_forecast.json"
+                with open(path, "w", encoding="utf-8") as f:
+                    json.dump(payload, f, indent=2, default=str)
+            except OSError as cache_exc:
+                print(f"[forecast_artifacts] Local cache write skipped (non-fatal): {cache_exc}", flush=True)
+                path = get_commodity_data_dir() / "price_forecast.json"
+
+            return path
+
+    except Exception as exc:  # noqa: BLE001
+        print(f"[forecast_artifacts] Supabase upload failed, falling back to local: {exc}", flush=True)
+
+    # Fallback / default: local filesystem only
+    root = base_dir if base_dir is not None else get_commodity_data_dir()
+    root.mkdir(parents=True, exist_ok=True)
+    path = root / "price_forecast.json"
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2, default=str)
 
     return path
