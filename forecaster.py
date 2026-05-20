@@ -455,6 +455,44 @@ def _without_duplicate_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df.loc[:, ~df.columns.duplicated()].copy()
 
 
+def _cols_unique_preserve_order(cols: list[str]) -> list[str]:
+    """Deduplicate feature names without reordering unrelated columns."""
+    return list(dict.fromkeys(cols))
+
+
+def _dataframe_to_aligned_float_matrix(df: pd.DataFrame, cols: list[str]) -> np.ndarray:
+    """Build dense float matrix columns=cols — no DataFrame.reindex (fails if labels repeat)."""
+    df = _without_duplicate_columns(df)
+    cols_u = _cols_unique_preserve_order(cols)
+    n = len(df)
+    mat = np.zeros((n, len(cols_u)), dtype=np.float64)
+    for j, c in enumerate(cols_u):
+        if c not in df.columns:
+            continue
+        s = pd.to_numeric(df.loc[:, c], errors="coerce").fillna(0.0)
+        vec = np.ascontiguousarray(s.to_numpy(dtype=np.float64, copy=False))
+        mat[:, j] = vec
+    return np.nan_to_num(mat, nan=0.0, posinf=0.0, neginf=0.0)
+
+
+def _dataframe_last_row_to_float_matrix(df: pd.DataFrame, cols: list[str]) -> np.ndarray:
+    """Shape (1, n_features) aligned to training cols — no reindex/align."""
+    df = _without_duplicate_columns(df.reset_index(drop=True))
+    cols_u = _cols_unique_preserve_order(cols)
+    if df.empty:
+        return np.zeros((1, len(cols_u)), dtype=np.float64)
+    row = df.iloc[-1]
+    row_vals: list[float] = []
+    for c in cols_u:
+        raw = row.get(c, np.nan)
+        if isinstance(raw, pd.Series):
+            raw = raw.iloc[-1]
+        v = pd.to_numeric(raw, errors="coerce")
+        row_vals.append(0.0 if pd.isna(v) else float(v))
+    arr = np.asarray([row_vals], dtype=np.float64)
+    return np.nan_to_num(arr, nan=0.0, posinf=0.0, neginf=0.0)
+
+
 # --------------------------------------------------
 # STEP 1: LOAD PRICE DATA (XLSX) FROM SUPABASE
 # --------------------------------------------------
@@ -687,10 +725,8 @@ def train_and_forecast(df_feat: pd.DataFrame, forecast_days: int = 45) -> dict:
 
     drop_cols = ["date", "modal_price", "month", "mean_ndvi", "target_next_day"]
     X_df = _without_duplicate_columns(df_model.drop(columns=drop_cols, errors="ignore"))
-    feature_cols = list(X_df.columns)
-    # pandas to_numeric accepts Series/array only — apply column-wise for DataFrame compatibility.
-    X_num = X_df.apply(pd.to_numeric, errors="coerce").fillna(0.0)
-    X_np = np.ascontiguousarray(X_num.to_numpy(dtype=np.float64, copy=False))
+    feature_cols = _cols_unique_preserve_order(list(X_df.columns))
+    X_np = _dataframe_to_aligned_float_matrix(X_df, feature_cols)
 
     y = df_model["target_next_day"]
 
@@ -728,13 +764,9 @@ def train_and_forecast(df_feat: pd.DataFrame, forecast_days: int = 45) -> dict:
     for step in range(forecast_days):
         history = _without_duplicate_columns(history)
         tail = history.iloc[-1:, :].reset_index(drop=True)
-        Xi = tail.drop(columns=predict_drop, errors="ignore")
-        Xi = _without_duplicate_columns(Xi).reindex(columns=feature_cols, fill_value=0.0)
-        Xi_num = Xi.apply(pd.to_numeric, errors="coerce").fillna(0.0)
-        X_row = np.ascontiguousarray(
-            Xi_num.to_numpy(dtype=np.float64, copy=False)
-        )
-        X_row = np.nan_to_num(X_row, nan=0.0, posinf=0.0, neginf=0.0)
+        feats = tail.drop(columns=predict_drop, errors="ignore")
+        feats = _without_duplicate_columns(feats)
+        X_row = _dataframe_last_row_to_float_matrix(feats, feature_cols)
         next_price = float(model_xgb.predict(X_row)[0])
 
         next_date = pd.Timestamp(tail["date"].iloc[0]) + pd.Timedelta(days=1)
