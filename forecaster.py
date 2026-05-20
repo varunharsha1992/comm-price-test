@@ -688,7 +688,8 @@ def train_and_forecast(df_feat: pd.DataFrame, forecast_days: int = 45) -> dict:
     drop_cols = ["date", "modal_price", "month", "mean_ndvi", "target_next_day"]
     X_df = _without_duplicate_columns(df_model.drop(columns=drop_cols, errors="ignore"))
     feature_cols = list(X_df.columns)
-    X_num = pd.to_numeric(X_df, errors="coerce").fillna(0.0)
+    # pandas to_numeric accepts Series/array only — apply column-wise for DataFrame compatibility.
+    X_num = X_df.apply(pd.to_numeric, errors="coerce").fillna(0.0)
     X_np = np.ascontiguousarray(X_num.to_numpy(dtype=np.float64, copy=False))
 
     y = df_model["target_next_day"]
@@ -729,10 +730,9 @@ def train_and_forecast(df_feat: pd.DataFrame, forecast_days: int = 45) -> dict:
         tail = history.iloc[-1:, :].reset_index(drop=True)
         Xi = tail.drop(columns=predict_drop, errors="ignore")
         Xi = _without_duplicate_columns(Xi).reindex(columns=feature_cols, fill_value=0.0)
+        Xi_num = Xi.apply(pd.to_numeric, errors="coerce").fillna(0.0)
         X_row = np.ascontiguousarray(
-            pd.to_numeric(Xi, errors="coerce")
-            .fillna(0.0)
-            .to_numpy(dtype=np.float64, copy=False)
+            Xi_num.to_numpy(dtype=np.float64, copy=False)
         )
         X_row = np.nan_to_num(X_row, nan=0.0, posinf=0.0, neginf=0.0)
         next_price = float(model_xgb.predict(X_row)[0])
