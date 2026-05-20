@@ -676,7 +676,12 @@ def build_features(df_poc, df_arrival_poc, df_ndvi):
     df_merged["month"] = df_merged["date"].dt.month
     df_merged = df_merged.merge(df_ndvi_monthly, on=["year", "month"], how="left")
 
-    df_feat = df_merged.copy().sort_values("date").reset_index(drop=True)
+    df_feat = (
+        df_merged.copy()
+        .sort_values("date")
+        .drop_duplicates(subset=["date"], keep="last")
+        .reset_index(drop=True)
+    )
 
     df_feat["price_lag_1"]  = df_feat["modal_price"].shift(1)
     df_feat["price_lag_7"]  = df_feat["modal_price"].shift(7)
@@ -696,13 +701,6 @@ def build_features(df_poc, df_arrival_poc, df_ndvi):
     df_feat["ndvi_change_1m"] = df_feat["mean_ndvi"] - df_feat["ndvi_lag_1m"]
     df_feat["month_sin"] = np.sin(2 * np.pi * df_feat["month"] / 12)
     df_feat["month_cos"] = np.cos(2 * np.pi * df_feat["month"] / 12)
-
-    if df_feat["date"].duplicated().any():
-        n_dup = int(df_feat["date"].duplicated().sum())
-        print(f"[forecaster] Dedup feature rows with duplicate dates (n_extra={n_dup}), keep='last'.")
-        df_feat = df_feat.sort_values("date").drop_duplicates(subset=["date"], keep="last").reset_index(
-            drop=True
-        )
 
     df_feat = _without_duplicate_columns(df_feat)
 
