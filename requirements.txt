@@ -16,9 +16,8 @@
 # # MCP Server
 # fastmcp==0.4.1
 fastmcp>=3.0.0
-# Windows + Python 3.13: pinned pandas 2.2.2 has no cp313 wheels → pip builds from source (Meson) and often
-# fails without full VS C++ toolchain. Allow 2.2.3+ / 3.x so pip can use prebuilt wheels. Alternative: use Python 3.12.
-pandas>=2.2.3,<4
+# Pinned to match local dev environment (pandas 3.0.x breaks reindex on duplicate labels).
+pandas==2.3.3
 numpy>=1.26.4,<3
 openpyxl>=3.1.2
 xgboost>=2.0.3
