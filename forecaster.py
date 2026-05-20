@@ -446,6 +446,15 @@ def download_file(supabase: Client, filename: str) -> bytes:
     return response  # returns raw bytes
 
 
+def _without_duplicate_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """XGBoost + pandas align break on duplicated column labels; normalize before fit/predict."""
+    if df.columns.is_unique:
+        return df
+    dup_names = sorted(set(df.columns[df.columns.duplicated(keep=False)].tolist()))
+    print(f"[forecaster] Dropping duplicated column labels: {dup_names}")
+    return df.loc[:, ~df.columns.duplicated()].copy()
+
+
 # --------------------------------------------------
 # STEP 1: LOAD PRICE DATA (XLSX) FROM SUPABASE
 # --------------------------------------------------
@@ -467,6 +476,7 @@ def load_price_data(supabase: Client) -> pd.DataFrame:
         df.columns = (
             df.columns.str.strip().str.lower().str.replace(" ", "_")
         )
+        df = _without_duplicate_columns(df)
 
         # Validate required columns
         required_cols = {
@@ -486,6 +496,7 @@ def load_price_data(supabase: Client) -> pd.DataFrame:
         all_years_df.append(df)
 
     df_all = pd.concat(all_years_df, ignore_index=True)
+    df_all = _without_duplicate_columns(df_all)
     df_all = df_all.sort_values("price_date").reset_index(drop=True)
     print(f"Price data loaded: {df_all.shape}")
     return df_all
@@ -534,6 +545,7 @@ def load_arrival_data(supabase: Client) -> pd.DataFrame:
             raise ValueError(f"{year}: No valid date column detected")
 
         df_arr = df_arr.rename(columns={date_col: "date"})
+        df_arr = _without_duplicate_columns(df_arr)
 
         # Validate columns
         required_cols = {"state", "district", "market", "commodity", "arrival", "date"}
@@ -547,11 +559,9 @@ def load_arrival_data(supabase: Client) -> pd.DataFrame:
         df_arr["data_year"] = year
         arrival_years.append(df_arr)
 
-    df_all_arrival = (
-        pd.concat(arrival_years, ignore_index=True)
-        .sort_values("date")
-        .reset_index(drop=True)
-    )
+    df_all_arrival = pd.concat(arrival_years, ignore_index=True)
+    df_all_arrival = _without_duplicate_columns(df_all_arrival)
+    df_all_arrival = df_all_arrival.sort_values("date").reset_index(drop=True)
     print(f"Arrival data loaded: {df_all_arrival.shape}")
     return df_all_arrival
 
@@ -562,18 +572,10 @@ def load_arrival_data(supabase: Client) -> pd.DataFrame:
 def load_ndvi_data(supabase: Client) -> pd.DataFrame:
     raw_bytes = download_file(supabase, "andhra_pradesh_ndvi_2023_2025.csv")
     df_ndvi = pd.read_csv(io.BytesIO(raw_bytes))
+    df_ndvi = _without_duplicate_columns(df_ndvi)
     df_ndvi["date"] = pd.to_datetime(df_ndvi["date"])
     print(f"NDVI data loaded: {df_ndvi.shape}")
     return df_ndvi
-
-
-def _without_duplicate_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """XGBoost + pandas align break on duplicated column labels; normalize before fit/predict."""
-    if df.columns.is_unique:
-        return df
-    dup_names = sorted(set(df.columns[df.columns.duplicated(keep=False)].tolist()))
-    print(f"[forecaster] Dropping duplicated column labels: {dup_names}")
-    return df.loc[:, ~df.columns.duplicated()].copy()
 
 
 # --------------------------------------------------
@@ -684,7 +686,11 @@ def train_and_forecast(df_feat: pd.DataFrame, forecast_days: int = 45) -> dict:
     df_model = _without_duplicate_columns(df_model)
 
     drop_cols = ["date", "modal_price", "month", "mean_ndvi", "target_next_day"]
-    X = _without_duplicate_columns(df_model.drop(columns=drop_cols, errors="ignore"))
+    X_df = _without_duplicate_columns(df_model.drop(columns=drop_cols, errors="ignore"))
+    feature_cols = list(X_df.columns)
+    X_num = pd.to_numeric(X_df, errors="coerce").fillna(0.0)
+    X_np = np.ascontiguousarray(X_num.to_numpy(dtype=np.float64, copy=False))
+
     y = df_model["target_next_day"]
 
     model_xgb = XGBRegressor(
@@ -692,7 +698,8 @@ def train_and_forecast(df_feat: pd.DataFrame, forecast_days: int = 45) -> dict:
         max_depth=5, subsample=0.8,
         colsample_bytree=0.8, random_state=42
     )
-    model_xgb.fit(X, y)
+    # Pass NumPy arrays so sklearn / XGBoost never call pandas.align / reindex on duplicate labels.
+    model_xgb.fit(X_np, y.to_numpy(dtype=np.float64, copy=False))
 
     prophet_df = (
         df_model[["date", "modal_price"]]
@@ -711,23 +718,33 @@ def train_and_forecast(df_feat: pd.DataFrame, forecast_days: int = 45) -> dict:
     prophet_forecast = prophet_model.predict(future)
     prophet_future_preds = prophet_forecast.tail(forecast_days)["yhat"].values
 
-    history = df_feat.copy().sort_values("date").reset_index(drop=True)
+    history = _without_duplicate_columns(
+        df_feat.copy().sort_values("date").reset_index(drop=True)
+    )
+    predict_drop = ["date", "modal_price", "month", "mean_ndvi"]
     xgb_future_preds = []
 
     for step in range(forecast_days):
-        last_row = history.iloc[-1:].copy()
-        X_input = _without_duplicate_columns(
-            last_row.drop(
-                columns=["date", "modal_price", "month", "mean_ndvi"], errors="ignore"
-            )
+        history = _without_duplicate_columns(history)
+        tail = history.iloc[-1:, :].reset_index(drop=True)
+        Xi = tail.drop(columns=predict_drop, errors="ignore")
+        Xi = _without_duplicate_columns(Xi).reindex(columns=feature_cols, fill_value=0.0)
+        X_row = np.ascontiguousarray(
+            pd.to_numeric(Xi, errors="coerce")
+            .fillna(0.0)
+            .to_numpy(dtype=np.float64, copy=False)
         )
-        next_price = model_xgb.predict(X_input)[0]
-        next_date = last_row["date"].values[0] + np.timedelta64(1, "D")
+        X_row = np.nan_to_num(X_row, nan=0.0, posinf=0.0, neginf=0.0)
+        next_price = float(model_xgb.predict(X_row)[0])
 
-        new_row = last_row.copy()
+        next_date = pd.Timestamp(tail["date"].iloc[0]) + pd.Timedelta(days=1)
+
+        new_row = tail.copy()
         new_row["date"] = next_date
         new_row["modal_price"] = next_price
-        history = pd.concat([history, new_row], ignore_index=True)
+        history = _without_duplicate_columns(
+            pd.concat([history, new_row], ignore_index=True)
+        )
 
         history["price_lag_1"] = history["modal_price"].shift(1)
         history["price_lag_7"] = history["modal_price"].shift(7)

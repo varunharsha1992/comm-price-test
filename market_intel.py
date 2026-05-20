@@ -127,34 +127,55 @@ def compute_market_intel(
     arrivals_value = None
 
     arrivals_path = base_dir / "mandi_arrivals.csv"
-    try:
-        arr = pd.read_csv(arrivals_path, parse_dates=["arrival_date"])
-        arr = arr.sort_values("arrival_date")
-        if len(arr) >= 4:
-            recent_4w = arr["arrivals_quintals"].tail(4).mean()
-            prior_4w = (
-                arr["arrivals_quintals"].iloc[-8:-4].mean()
-                if len(arr) >= 8
-                else recent_4w
+    if arrivals_path.is_file():
+        try:
+            arr = pd.read_csv(arrivals_path, parse_dates=["arrival_date"])
+            # Malformed CSVs can repeat header names → alignment errors on some stacks.
+            arr = arr.loc[:, ~arr.columns.duplicated()].copy()
+            if "arrival_date" not in arr.columns or "arrivals_quintals" not in arr.columns:
+                raise ValueError("mandi_arrivals.csv requires arrival_date and arrivals_quintals")
+            arr["arrivals_quintals"] = pd.to_numeric(
+                arr["arrivals_quintals"], errors="coerce"
             )
-            arrivals_value = float(recent_4w)
-            ratio = recent_4w / prior_4w if prior_4w > 0 else 1.0
-            if ratio < 0.80:
-                arrivals_signal = "FALLING"
-                arrivals_bias = 0.10
-            elif ratio < 0.95:
-                arrivals_signal = "SLIGHTLY_FALLING"
-                arrivals_bias = 0.04
-            elif ratio > 1.20:
-                arrivals_signal = "SURGING"
-                arrivals_bias = -0.12
-            elif ratio > 1.05:
-                arrivals_signal = "RISING"
-                arrivals_bias = -0.05
-            else:
-                arrivals_signal = "STABLE"
-                arrivals_bias = 0.0
-    except FileNotFoundError:
+            arr = arr.dropna(subset=["arrival_date", "arrivals_quintals"])
+            arr = (
+                arr.groupby("arrival_date", as_index=False)["arrivals_quintals"]
+                .sum()
+                .sort_values("arrival_date")
+                .reset_index(drop=True)
+            )
+            if len(arr) >= 4:
+                recent_4w = arr["arrivals_quintals"].tail(4).mean()
+                prior_4w = (
+                    arr["arrivals_quintals"].iloc[-8:-4].mean()
+                    if len(arr) >= 8
+                    else recent_4w
+                )
+                arrivals_value = float(recent_4w)
+                ratio = recent_4w / prior_4w if prior_4w > 0 else 1.0
+                if ratio < 0.80:
+                    arrivals_signal = "FALLING"
+                    arrivals_bias = 0.10
+                elif ratio < 0.95:
+                    arrivals_signal = "SLIGHTLY_FALLING"
+                    arrivals_bias = 0.04
+                elif ratio > 1.20:
+                    arrivals_signal = "SURGING"
+                    arrivals_bias = -0.12
+                elif ratio > 1.05:
+                    arrivals_signal = "RISING"
+                    arrivals_bias = -0.05
+                else:
+                    arrivals_signal = "STABLE"
+                    arrivals_bias = 0.0
+        except (FileNotFoundError, PermissionError):
+            arrivals_signal = "NO_DATA"
+            arrivals_bias = 0.0
+        except Exception as exc:  # noqa: BLE001 — bad CSV shape; degrade gracefully
+            print(f"[market_intel] Could not parse mandi_arrivals.csv: {exc}", flush=True)
+            arrivals_signal = "NO_DATA"
+            arrivals_bias = 0.0
+    else:
         arrivals_signal = "NO_DATA"
         arrivals_bias = 0.0
 
