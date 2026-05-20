@@ -5,13 +5,25 @@ ACTION ITEM 1: Upload input files to Supabase S3 Storage.
 
 HOW TO USE:
 -----------
-1. pip install supabase
-2. Fill in your SUPABASE_URL and SUPABASE_KEY below
-3. Place all your input files in the same folder as this script
-4. Run: python supabase_upload.py
+1. pip install supabase python-dotenv
+2. SUPABASE_* and optionally COMMODITY_SUPABASE_PREFIX in .env
+
+   Seasonal calendar on disk defaults to ./seasonal_calendar.json (cwd is where you run the script).
+
+   Override the local path in .env, e.g.:
+     SEASONAL_CALENDAR_LOCAL_PATH=data/seasonal_calendar.json
+
+   Uploaded object key remains: {COMMODITY_SUPABASE_PREFIX}/seasonal_calendar.json
+
+3. Run: python supabase_upload.py
 """
 
 import os
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from supabase import create_client, Client
 
 # --------------------------------------------------
@@ -19,26 +31,22 @@ from supabase import create_client, Client
 # --------------------------------------------------
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
- 
-BUCKET_NAME = "Forecasting"
 
-# --------------------------------------------------
-# FILES TO UPLOAD
-# --------------------------------------------------
-files_to_upload = [
-    # Price Report Excel files
-    "Daily Price Report-01-01-2023 to 31-12-2023 for Andhra Pradesh.xlsx",
-    "Daily Price Report-01-01-2024 to 31-12-2024 for Andhra Pradesh.xlsx",
-    "Daily Price Report-01-01-2025 to 31-12-2025 for Andhra Pradesh.xlsx",
+BUCKET_NAME = os.environ.get("BUCKET_NAME", "Forecasting")
 
-    # Arrival Report CSV files
-    "Daily Arrival Report-01-01-2023 to 31-12-2023 for Andhra Pradesh.csv",
-    "Daily Arrival Report-01-01-2024 to 31-12-2024 for Andhra Pradesh.csv",
-    "Daily Arrival Report-01-01-2025 to 31-12-2025 for Andhra Pradesh.csv",
 
-    # NDVI data
-    "andhra_pradesh_ndvi_2023_2025.csv",
-]
+def _storage_object_key(local_filepath: str) -> str:
+    """Map local file to bucket path. seasonal_calendar.json always uploads under COMMODITY_SUPABASE_PREFIX."""
+    base = os.path.basename(local_filepath.replace("\\", "/"))
+    prefix = os.environ.get("COMMODITY_SUPABASE_PREFIX", "workspace").strip().strip("/")
+    if base == "seasonal_calendar.json":
+        return f"{prefix}/{base}" if prefix else base
+    return local_filepath.replace("\\", "/")
+
+
+def _seasonal_calendar_local_path() -> str:
+    raw = os.environ.get("SEASONAL_CALENDAR_LOCAL_PATH", "").strip()
+    return raw if raw else "seasonal_calendar.json"
 
 # --------------------------------------------------
 # UPLOAD FUNCTION
@@ -46,6 +54,9 @@ files_to_upload = [
 def upload_files():
     print("Connecting to Supabase...")
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+
+    files_to_upload = [_seasonal_calendar_local_path()]
+    print(f"  Local seasonal file: {files_to_upload[0]}")
 
     # Create bucket if it doesn't exist
     try:
@@ -70,20 +81,23 @@ def upload_files():
             content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         elif filename.endswith(".csv"):
             content_type = "text/csv"
+        elif filename.endswith(".json"):
+            content_type = "application/json"
         else:
             content_type = "application/octet-stream"
 
         try:
+            object_key = _storage_object_key(filename)
             # Upload (upsert=True so re-running overwrites old files)
             supabase.storage.from_(BUCKET_NAME).upload(
-                path=filename,
+                path=object_key,
                 file=file_bytes,
                 file_options={
                     "content-type": content_type,
                     "upsert": "true"
                 }
             )
-            print(f"  Uploaded: {filename}")
+            print(f"  Uploaded: {object_key}")
         except Exception as e:
             print(f"   Failed: {filename} → {e}")
 

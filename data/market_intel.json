@@ -1,0 +1,55 @@
+{
+  "meta": {
+    "commodity": "Tomato",
+    "origin": "Madanapalli APMC",
+    "horizon_days": 45,
+    "data_dir": "C:\\Users\\varun\\OneDrive\\Desktop\\Codename Cadra\\Cadra\\RCPL_AI_Workshop\\Comm Price Forecasting\\data"
+  },
+  "generated_date": "2026-05-20",
+  "current_price": 5300.0,
+  "price_forecast": {
+    "P10": 4269.25,
+    "P50": 4408.2,
+    "P90": 4431.1
+  },
+  "signals": {
+    "ndvi": {
+      "value": 0.55,
+      "signal": "MODERATE",
+      "bias": 0.04,
+      "weight": 0.35
+    },
+    "arrivals": {
+      "value_quintals_4w_avg": null,
+      "signal": "NO_DATA",
+      "bias": 0.0,
+      "weight": 0.3
+    },
+    "season": {
+      "name": "Pre-Kharif Lean",
+      "direction": "UP",
+      "magnitude": 0.12,
+      "bias": 0.12,
+      "weight": 0.25,
+      "weeks_to_transition": 10,
+      "procurement_advice": "Lock in contracts early. Prices likely to rise through June."
+    },
+    "rainfall": {
+      "imd_label": "normal",
+      "signal": "NORMAL",
+      "bias": 0.0,
+      "weight": 0.1
+    }
+  },
+  "aggregate_price_drift_adjustment": 0.044,
+  "risk_events": [
+    {
+      "event": "Heat wave (May\u2013Jun)",
+      "months": [
+        5,
+        6
+      ],
+      "impact": "Accelerated crop maturity, short-term supply glut followed by shortage"
+    }
+  ]
+}

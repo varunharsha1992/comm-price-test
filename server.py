@@ -139,7 +139,12 @@ FastMCP server for Unilever Price Forecasting.
 Deployed on Prefect Horizon (FastMCP Cloud).
 """
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from fastmcp import FastMCP
+from forecast_artifacts import get_commodity_data_dir, save_price_forecast_json
 from forecaster import run_forecast
 from market_intel import get_market_intel_summary_impl, run_market_intel_impl
 import sys
@@ -158,9 +163,17 @@ def run_price_forecast(forecast_days: int = 45) -> dict:
     Reads input data from Supabase S3 storage, trains an
     XGBoost + Prophet ensemble model, and returns a 45-day
     price forecast and procurement decision (LOCK-IN / SPOT BUY).
+
+    Also writes ``price_forecast.json`` under ``MARKET_INTEL_DATA_DIR`` when local mode is used.
+    With ``COMMODITY_USE_SUPABASE_ARTIFACTS=true``, also upserts ``workspace/price_forecast.json``
+    (path prefix configurable via ``COMMODITY_SUPABASE_PREFIX``) in bucket ``BUCKET_NAME``.
     """
     result = run_forecast(forecast_days=forecast_days)
-    return result
+    artifact_path = save_price_forecast_json(result)
+    out = dict(result)
+    out["forecast_data_dir"] = str(get_commodity_data_dir())
+    out["saved_price_forecast_json"] = str(artifact_path)
+    return out
 
 
 @mcp.tool()
@@ -168,8 +181,12 @@ def get_forecast_summary() -> str:
     """
     Get a plain-English procurement summary for the next 45 days.
     Returns a human-readable summary for procurement managers.
+
+    Persists ``price_forecast.json`` (same directory as ``run_price_forecast``)
+    under ``MARKET_INTEL_DATA_DIR`` for use by market intelligence.
     """
     result = run_forecast(forecast_days=45)
+    save_price_forecast_json(result)
 
     summary = f"""
 UNILEVER TOMATO PRICE FORECAST SUMMARY
@@ -203,11 +220,14 @@ def run_market_intel(
     horizon_days: int = 45,
 ) -> dict:
     """
-    Build market intelligence from files in MARKET_INTEL_DATA_DIR (default: cwd).
+    Build market intelligence from filesystem or Supabase workspace.
 
-    Expects price_forecast.json and seasonal_calendar.json; optional ndvi_latest.json
-    and mandi_arrivals.csv. Scrapes IMD rainfall context. Writes market_intel.json and
-    returns intel_id plus structured signals and aggregate_price_drift_adjustment.
+    Filesystem (default): ``MARKET_INTEL_DATA_DIR`` with ``seasonal_calendar.json``
+    + ``price_forecast.json``. Call ``run_price_forecast`` first to emit the latter.
+
+    Supabase: set ``COMMODITY_USE_SUPABASE_ARTIFACTS=true``. Objects live under bucket
+    ``BUCKET_NAME`` at ``{COMMODITY_SUPABASE_PREFIX}/seasonal_calendar.json`` and
+    ``.../price_forecast.json`` (upload calendar via ``supabase_upload.py`` + ``run_price_forecast``).
     """
     return run_market_intel_impl(
         commodity=commodity,

@@ -1,11 +1,15 @@
 """
 Market intelligence pipeline for the commodity MCP server.
 
-Reads `price_forecast.json`, `seasonal_calendar.json`, optional NDVI / mandi arrivals,
-and scrapes IMD rainfall context. Computes aggregate price drift adjustment.
+Reads ``price_forecast.json`` (written by ``run_price_forecast`` into the workspace),
+``seasonal_calendar.json``, optional NDVI / mandi arrivals, and scrapes IMD rainfall context.
 
-Set MARKET_INTEL_DATA_DIR to the folder containing those inputs (default: current working directory).
+Filesystem workspace: ``MARKET_INTEL_DATA_DIR`` (default: cwd).
+
+Alternatively set ``COMMODITY_USE_SUPABASE_ARTIFACTS=true``—inputs are fetched from bucket
+``BUCKET_NAME`` under ``COMMODITY_SUPABASE_PREFIX`` (see ``workspace_storage.py``).
 """
+
 
 from __future__ import annotations
 
@@ -13,6 +17,7 @@ import json
 import os
 import re
 import secrets
+import shutil
 import warnings
 from datetime import date
 from pathlib import Path
@@ -32,6 +37,12 @@ def _data_dir() -> Path:
 
 def _load_price_levels(base_dir: Path) -> tuple[float, float, float, float]:
     path = base_dir / "price_forecast.json"
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"Missing price_forecast.json under {base_dir}. "
+            "Run the run_price_forecast tool first (it writes price_forecast.json "
+            "to MARKET_INTEL_DATA_DIR), or add the file manually."
+        )
     with open(path, encoding="utf-8") as f:
         pf = json.load(f)
     # Support plugin-style keys and forecaster-style aliases
@@ -358,8 +369,21 @@ def run_market_intel_impl(
     horizon_days: int = 45,
 ) -> dict[str, Any]:
     """Compute market intelligence; returns intel_id and full payload."""
-    base_dir = _data_dir()
-    payload, summary_md = compute_market_intel(base_dir, commodity, origin, horizon_days)
+    from workspace_storage import artifacts_enabled, materialize_workspace_dir
+
+    tmp_workspace: Path | None = None
+    if artifacts_enabled():
+        tmp_workspace = materialize_workspace_dir()
+        base_dir = tmp_workspace
+    else:
+        base_dir = _data_dir()
+
+    try:
+        payload, summary_md = compute_market_intel(base_dir, commodity, origin, horizon_days)
+    finally:
+        if tmp_workspace is not None and tmp_workspace.is_dir():
+            shutil.rmtree(tmp_workspace, ignore_errors=True)
+
     intel_id = secrets.token_hex(16)
     _INTEL_CACHE[intel_id] = {"payload": payload, "summary_md": summary_md}
     return {"intel_id": intel_id, "market_intel": payload}

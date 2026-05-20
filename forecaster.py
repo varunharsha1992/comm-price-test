@@ -413,6 +413,10 @@ import os
 import sys
 import logging
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 # Fix encoding
 os.environ["PYTHONIOENCODING"] = "utf-8"
 
@@ -775,6 +779,12 @@ def run_forecast(forecast_days: int = 45) -> dict:
 
 if __name__ == "__main__":
     result = run_forecast()
+    from forecast_artifacts import save_price_forecast_json
+
+    out_path = save_price_forecast_json(result)
+    print(f"\nWrote price_forecast.json → {out_path}")
+
     print("\nFull result:")
     import json
+
     print(json.dumps(result, indent=2, default=str))

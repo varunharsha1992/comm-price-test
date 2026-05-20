@@ -1,0 +1,74 @@
+{
+  "commodity": "Tomato",
+  "geography": "Madanapalli APMC, Chittoor, Andhra Pradesh",
+  "last_updated": "2026-05-19",
+  "notes": "AP tomato has two main crop cycles: Kharif (Jun–Sep sowing, Oct–Dec harvest) and Rabi (Oct–Dec sowing, Feb–Apr harvest). Madanapalli is the single largest tomato growing cluster in India with ~60,000 acres under cultivation.",
+  "seasons": [
+    {
+      "name": "Pre-Kharif Lean",
+      "months": [4, 5, 6],
+      "description": "Post-Rabi harvest exhausted. Pre-Kharif supply trough. Prices typically peak May–June.",
+      "historical_price_direction": "UP",
+      "price_drift_magnitude": 0.12,
+      "typical_price_range_inr_per_quintal": [1800, 3500],
+      "weeks_to_next_transition": 10,
+      "procurement_advice": "Lock in contracts early. Prices likely to rise through June."
+    },
+    {
+      "name": "Kharif Harvest Flush",
+      "months": [10, 11, 12],
+      "description": "Kharif crop arrives at mandis. Supply surge. Prices crash sharply.",
+      "historical_price_direction": "DOWN",
+      "price_drift_magnitude": 0.18,
+      "typical_price_range_inr_per_quintal": [400, 1200],
+      "weeks_to_next_transition": 8,
+      "procurement_advice": "Spot buy. Avoid long-term contracts. Prices at seasonal lows."
+    },
+    {
+      "name": "Rabi Growing",
+      "months": [1, 2],
+      "description": "Kharif supply winding down. Rabi crop still growing. Prices recovering.",
+      "historical_price_direction": "UP",
+      "price_drift_magnitude": 0.08,
+      "typical_price_range_inr_per_quintal": [1000, 2000],
+      "weeks_to_next_transition": 6,
+      "procurement_advice": "Start building forward coverage. Prices rising."
+    },
+    {
+      "name": "Rabi Harvest",
+      "months": [3, 4],
+      "description": "Rabi crop harvested. Second supply peak of the year. Prices moderate.",
+      "historical_price_direction": "DOWN",
+      "price_drift_magnitude": 0.07,
+      "typical_price_range_inr_per_quintal": [800, 1600],
+      "weeks_to_next_transition": 4,
+      "procurement_advice": "Good time for spot buying. Prices will ease through April."
+    },
+    {
+      "name": "Post-Kharif Transition",
+      "months": [7, 8, 9],
+      "description": "Kharif crop maturing. Pre-harvest period. Price direction depends on monsoon quality and NDVI.",
+      "historical_price_direction": "FLAT",
+      "price_drift_magnitude": 0.04,
+      "typical_price_range_inr_per_quintal": [1200, 2500],
+      "weeks_to_next_transition": 12,
+      "procurement_advice": "Monitor NDVI and arrivals closely. Mixed signals period. Use split strategy."
+    }
+  ],
+  "ndvi_thresholds": {
+    "stress": 0.40,
+    "healthy": 0.60,
+    "notes": "NDVI readings are 2-month leading indicators of harvest volume. Values below 0.40 in growing months (Jun–Sep) signal supply shock risk."
+  },
+  "key_mandi_markets": [
+    {"name": "Madanapalli", "district": "Chittoor", "state": "AP", "monthly_avg_arrivals_peak_quintals": 85000},
+    {"name": "Kurnool",     "district": "Kurnool",  "state": "AP", "monthly_avg_arrivals_peak_quintals": 32000},
+    {"name": "Chittoor",   "district": "Chittoor", "state": "AP", "monthly_avg_arrivals_peak_quintals": 18000}
+  ],
+  "major_risk_events": [
+    {"event": "Cyclone season",        "months": [10, 11], "impact": "Transport disruption, quality deterioration, 2–3 week supply gap"},
+    {"event": "Election season",        "months": [],       "impact": "Occasional mandi closure (1–2 days). Minimal procurement impact."},
+    {"event": "Monsoon onset (AP)",    "months": [6],      "impact": "Arrival disruption for 1–2 weeks. Price spike possible."},
+    {"event": "Heat wave (May–Jun)",   "months": [5, 6],   "impact": "Accelerated crop maturity, short-term supply glut followed by shortage"}
+  ]
+}

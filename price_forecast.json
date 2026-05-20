@@ -1,0 +1,195 @@
+{
+  "latest_price": 5300.0,
+  "forecast_price": 4408.2,
+  "trust_score": 87.1,
+  "price_direction": "DOWN",
+  "decision": "SPOT BUY",
+  "forecast_days": 45,
+  "forecast_series": [
+    {
+      "date": "2026-01-01",
+      "predicted_modal_price": 4360.09
+    },
+    {
+      "date": "2026-01-02",
+      "predicted_modal_price": 4323.95
+    },
+    {
+      "date": "2026-01-03",
+      "predicted_modal_price": 4326.51
+    },
+    {
+      "date": "2026-01-04",
+      "predicted_modal_price": 4301.57
+    },
+    {
+      "date": "2026-01-05",
+      "predicted_modal_price": 4339.99
+    },
+    {
+      "date": "2026-01-06",
+      "predicted_modal_price": 4384.71
+    },
+    {
+      "date": "2026-01-07",
+      "predicted_modal_price": 4440.79
+    },
+    {
+      "date": "2026-01-08",
+      "predicted_modal_price": 4341.08
+    },
+    {
+      "date": "2026-01-09",
+      "predicted_modal_price": 4241.48
+    },
+    {
+      "date": "2026-01-10",
+      "predicted_modal_price": 4312.2
+    },
+    {
+      "date": "2026-01-11",
+      "predicted_modal_price": 4284.19
+    },
+    {
+      "date": "2026-01-12",
+      "predicted_modal_price": 4244.97
+    },
+    {
+      "date": "2026-01-13",
+      "predicted_modal_price": 4271.3
+    },
+    {
+      "date": "2026-01-14",
+      "predicted_modal_price": 4332.35
+    },
+    {
+      "date": "2026-01-15",
+      "predicted_modal_price": 4302.3
+    },
+    {
+      "date": "2026-01-16",
+      "predicted_modal_price": 4267.88
+    },
+    {
+      "date": "2026-01-17",
+      "predicted_modal_price": 4287.48
+    },
+    {
+      "date": "2026-01-18",
+      "predicted_modal_price": 4279.76
+    },
+    {
+      "date": "2026-01-19",
+      "predicted_modal_price": 4260.66
+    },
+    {
+      "date": "2026-01-20",
+      "predicted_modal_price": 4316.43
+    },
+    {
+      "date": "2026-01-21",
+      "predicted_modal_price": 4326.9
+    },
+    {
+      "date": "2026-01-22",
+      "predicted_modal_price": 4308.15
+    },
+    {
+      "date": "2026-01-23",
+      "predicted_modal_price": 4260.93
+    },
+    {
+      "date": "2026-01-24",
+      "predicted_modal_price": 4302.34
+    },
+    {
+      "date": "2026-01-25",
+      "predicted_modal_price": 4311.77
+    },
+    {
+      "date": "2026-01-26",
+      "predicted_modal_price": 4284.25
+    },
+    {
+      "date": "2026-01-27",
+      "predicted_modal_price": 4317.56
+    },
+    {
+      "date": "2026-01-28",
+      "predicted_modal_price": 4357.94
+    },
+    {
+      "date": "2026-01-29",
+      "predicted_modal_price": 4378.15
+    },
+    {
+      "date": "2026-01-30",
+      "predicted_modal_price": 4341.54
+    },
+    {
+      "date": "2026-01-31",
+      "predicted_modal_price": 4429.17
+    },
+    {
+      "date": "2026-02-01",
+      "predicted_modal_price": 4388.34
+    },
+    {
+      "date": "2026-02-02",
+      "predicted_modal_price": 4311.87
+    },
+    {
+      "date": "2026-02-03",
+      "predicted_modal_price": 4374.16
+    },
+    {
+      "date": "2026-02-04",
+      "predicted_modal_price": 4408.68
+    },
+    {
+      "date": "2026-02-05",
+      "predicted_modal_price": 4421.54
+    },
+    {
+      "date": "2026-02-06",
+      "predicted_modal_price": 4407.04
+    },
+    {
+      "date": "2026-02-07",
+      "predicted_modal_price": 4396.97
+    },
+    {
+      "date": "2026-02-08",
+      "predicted_modal_price": 4432.39
+    },
+    {
+      "date": "2026-02-09",
+      "predicted_modal_price": 4468.8
+    },
+    {
+      "date": "2026-02-10",
+      "predicted_modal_price": 4540.95
+    },
+    {
+      "date": "2026-02-11",
+      "predicted_modal_price": 4466.95
+    },
+    {
+      "date": "2026-02-12",
+      "predicted_modal_price": 4389.73
+    },
+    {
+      "date": "2026-02-13",
+      "predicted_modal_price": 4400.69
+    },
+    {
+      "date": "2026-02-14",
+      "predicted_modal_price": 4408.2
+    }
+  ],
+  "current_price": 5300.0,
+  "P0": 5300.0,
+  "P50": 4408.2,
+  "P10": 4269.25,
+  "P90": 4431.1
+}
