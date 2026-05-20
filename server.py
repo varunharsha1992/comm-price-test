@@ -244,5 +244,62 @@ def get_market_intel_summary(intel_id: str) -> str:
     return get_market_intel_summary_impl(intel_id)
 
 
+@mcp.tool()
+def get_runtime_diagnostics() -> dict:
+    """
+    Return Python, OS, and installed package versions for the running container.
+
+    Use this to diagnose dependency drift between local and deployed environments
+    (e.g. pandas/numpy/xgboost/prophet minor differences causing reindex/align errors).
+    """
+    import platform
+    import sys
+    from importlib.metadata import PackageNotFoundError, distributions, version
+
+    interesting = [
+        "pandas",
+        "numpy",
+        "scikit-learn",
+        "xgboost",
+        "prophet",
+        "cmdstanpy",
+        "fastmcp",
+        "supabase",
+        "openpyxl",
+        "python-dotenv",
+        "requests",
+        "beautifulsoup4",
+    ]
+    key_versions: dict[str, str | None] = {}
+    for name in interesting:
+        try:
+            key_versions[name] = version(name)
+        except PackageNotFoundError:
+            key_versions[name] = None
+
+    pip_freeze = sorted(
+        f"{d.metadata['Name']}=={d.version}"
+        for d in distributions()
+        if d.metadata is not None and d.metadata.get("Name")
+    )
+
+    loaded_paths: dict[str, str | None] = {}
+    for mod_name in ("pandas", "numpy", "xgboost", "prophet", "sklearn"):
+        try:
+            mod = __import__(mod_name)
+            loaded_paths[mod_name] = getattr(mod, "__file__", None)
+        except Exception as e:  # noqa: BLE001
+            loaded_paths[mod_name] = f"<import failed: {e}>"
+
+    return {
+        "python": sys.version,
+        "platform": platform.platform(),
+        "executable": sys.executable,
+        "key_versions": key_versions,
+        "loaded_module_paths": loaded_paths,
+        "pip_freeze": pip_freeze,
+    }
+
+
 if __name__ == "__main__":
     mcp.run()
