@@ -567,6 +567,15 @@ def load_ndvi_data(supabase: Client) -> pd.DataFrame:
     return df_ndvi
 
 
+def _without_duplicate_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """XGBoost + pandas align break on duplicated column labels; normalize before fit/predict."""
+    if df.columns.is_unique:
+        return df
+    dup_names = sorted(set(df.columns[df.columns.duplicated(keep=False)].tolist()))
+    print(f"[forecaster] Dropping duplicated column labels: {dup_names}")
+    return df.loc[:, ~df.columns.duplicated()].copy()
+
+
 # --------------------------------------------------
 # STEP 4: FILTER TO POC SCOPE
 # --------------------------------------------------
@@ -595,9 +604,16 @@ def filter_poc(df_all: pd.DataFrame, df_all_arrival: pd.DataFrame):
         (df_all_arrival["commodity"].str.lower() == "tomato")
     ][["date", "arrival"]].copy()
 
-    df_arrival_poc = df_arrival_poc.sort_values("date").reset_index(drop=True)
+    # Multiple arrival rows per date break merge-many-to-one and can trigger downstream
+    # pandas alignment errors ("cannot reindex on an axis with duplicate labels").
+    df_arrival_poc = (
+        df_arrival_poc.groupby("date", as_index=False)["arrival"]
+        .sum()
+        .sort_values("date")
+        .reset_index(drop=True)
+    )
 
-    print(f"POC price rows: {len(df_poc)}, arrival rows: {len(df_arrival_poc)}")
+    print(f"POC price rows: {len(df_poc)}, arrival rows (1 per date): {len(df_arrival_poc)}")
     return df_poc, df_arrival_poc
 
 
@@ -613,6 +629,7 @@ def build_features(df_poc, df_arrival_poc, df_ndvi):
     df_ndvi_monthly = (
         df_ndvi.groupby(["year", "month"], as_index=False)
         .agg(mean_ndvi=("mean_ndvi", "mean"))
+        .drop_duplicates(subset=["year", "month"], keep="last")
     )
 
     df_merged["year"] = df_merged["date"].dt.year
@@ -640,6 +657,15 @@ def build_features(df_poc, df_arrival_poc, df_ndvi):
     df_feat["month_sin"] = np.sin(2 * np.pi * df_feat["month"] / 12)
     df_feat["month_cos"] = np.cos(2 * np.pi * df_feat["month"] / 12)
 
+    if df_feat["date"].duplicated().any():
+        n_dup = int(df_feat["date"].duplicated().sum())
+        print(f"[forecaster] Dedup feature rows with duplicate dates (n_extra={n_dup}), keep='last'.")
+        df_feat = df_feat.sort_values("date").drop_duplicates(subset=["date"], keep="last").reset_index(
+            drop=True
+        )
+
+    df_feat = _without_duplicate_columns(df_feat)
+
     df_feat = df_feat.dropna().reset_index(drop=True)
     print(f"Feature dataset shape: {df_feat.shape}")
     return df_feat
@@ -655,9 +681,10 @@ def train_and_forecast(df_feat: pd.DataFrame, forecast_days: int = 45) -> dict:
     df_model = df_feat.copy().sort_values("date").reset_index(drop=True)
     df_model["target_next_day"] = df_model["modal_price"].shift(-1)
     df_model = df_model.dropna().reset_index(drop=True)
+    df_model = _without_duplicate_columns(df_model)
 
     drop_cols = ["date", "modal_price", "month", "mean_ndvi", "target_next_day"]
-    X = df_model.drop(columns=drop_cols, errors="ignore")
+    X = _without_duplicate_columns(df_model.drop(columns=drop_cols, errors="ignore"))
     y = df_model["target_next_day"]
 
     model_xgb = XGBRegressor(
@@ -667,8 +694,12 @@ def train_and_forecast(df_feat: pd.DataFrame, forecast_days: int = 45) -> dict:
     )
     model_xgb.fit(X, y)
 
-    prophet_df = df_model[["date", "modal_price"]].rename(
-        columns={"date": "ds", "modal_price": "y"}
+    prophet_df = (
+        df_model[["date", "modal_price"]]
+        .rename(columns={"date": "ds", "modal_price": "y"})
+        .drop_duplicates(subset=["ds"], keep="last")
+        .sort_values("ds")
+        .reset_index(drop=True)
     )
     prophet_model = Prophet(
         yearly_seasonality=True,
@@ -685,8 +716,10 @@ def train_and_forecast(df_feat: pd.DataFrame, forecast_days: int = 45) -> dict:
 
     for step in range(forecast_days):
         last_row = history.iloc[-1:].copy()
-        X_input = last_row.drop(
-            columns=["date", "modal_price", "month", "mean_ndvi"], errors="ignore"
+        X_input = _without_duplicate_columns(
+            last_row.drop(
+                columns=["date", "modal_price", "month", "mean_ndvi"], errors="ignore"
+            )
         )
         next_price = model_xgb.predict(X_input)[0]
         next_date = last_row["date"].values[0] + np.timedelta64(1, "D")
